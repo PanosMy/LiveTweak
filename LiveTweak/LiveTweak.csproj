@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+		<AssemblyName>LiveTweak</AssemblyName>
+    <Nullable>enable</Nullable>
+		<RootNamespace>LiveTweak</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaXaml Remove="Editor\ViewModels\Entries\**" />
+    <Compile Remove="Editor\ViewModels\Entries\**" />
+    <EmbeddedResource Remove="Editor\ViewModels\Entries\**" />
+    <None Remove="Editor\ViewModels\Entries\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.9" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.9" />
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.9" Condition="'$(Configuration)'=='Debug'" />
+    <PackageReference Include="Avalonia.ReactiveUI" Version="11.3.9" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.3.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="ReactiveUI" Version="22.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Editor\Styles\" />
+  </ItemGroup>
+
+</Project>
