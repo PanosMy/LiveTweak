@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using Convert = LiveTweak.Infrastructure.Helper.Convert;
 
 namespace LiveTweak.Editor.ViewModels;
 

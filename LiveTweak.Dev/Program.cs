@@ -1,5 +1,6 @@
 ﻿using LiveTweak;
 using LiveTweak.Attributes;
+using LiveTweak.Dev;
 
 internal class Program
 {
@@ -19,6 +20,7 @@ internal class Program
     // Value with callback when changed
     [LiveTweak("Volume", "Audio", Min = 0, Max = 1, OnChanged = nameof(OnVolumeChanged))]
     public static float MasterVolume = 0.8f;
+
 
     [LiveTweak("Debug Mode")]
     public static bool DebugEnabled = false;
@@ -45,6 +47,13 @@ internal class Program
         { "Key1", true },
         { "Key2", false },
         { "Key3", true }
+    };
+
+    [LiveTweak("Key Types Bindings ", "Keys")]
+    public static Dictionary<KeyType, string> KeyTypesBindings = new()
+    {
+        { KeyType.Jump, "Space"},
+        { KeyType.Crouch, "Ctrl"}
     };
 
     private static void OnVolumeChanged()

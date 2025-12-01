@@ -6,6 +6,7 @@
 		<AssemblyName>LiveTweak</AssemblyName>
     <Nullable>enable</Nullable>
 		<RootNamespace>LiveTweak</RootNamespace>
+		<Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
