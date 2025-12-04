@@ -3,6 +3,7 @@ using System.Reflection;
 using LiveTweak.Application.Abstractions;
 using LiveTweak.Domain.Abstractions;
 using LiveTweak.Domain.Models;
+using LiveTweak.Infrastructure.Services;
 using DictEntry = LiveTweak.Domain.Models.DictionaryEntry;
 
 namespace LiveTweak.Infrastructure.Reflection;
@@ -57,6 +58,7 @@ internal sealed class ReflectionTweakSource : ITweakSource
         catch
         {
         }
+
         return false;
     }
 
@@ -71,7 +73,11 @@ internal sealed class ReflectionTweakSource : ITweakSource
 
             if (IsDictionaryType(f.FieldType))
             {
-                yield return BuildDict(owner, f);
+                yield return BuildDictionary(owner, f);
+            }
+            else if (IsCollectionType(f.FieldType))
+            {
+                yield return BuildCollection(owner, f);
             }
             else
             {
@@ -86,7 +92,11 @@ internal sealed class ReflectionTweakSource : ITweakSource
 
             if (IsDictionaryType(p.PropertyType))
             {
-                yield return BuildDict(owner, p);
+                yield return BuildDictionary(owner, p);
+            }
+            else if (IsCollectionType(p.PropertyType))
+            {
+                yield return BuildCollection(owner, p);
             }
             else
             {
@@ -144,14 +154,14 @@ internal sealed class ReflectionTweakSource : ITweakSource
         );
     }
 
-    private DictEntry BuildDict(Type owner, MemberInfo member)
+    private DictEntry BuildDictionary(Type owner, MemberInfo member)
     {
-        var (label, _, _, category, callback) = _attributes.ReadTweak(member);
+        var (label, min, max, category, callback) = _attributes.ReadTweak(member);
         var memberType = member is FieldInfo fi ? fi.FieldType : ((PropertyInfo)member).PropertyType;
 
         Type keyType = typeof(string);
         Type valueType = typeof(string);
-        if (TryGetGenericDictionaryKV(memberType, out var k, out var v))
+        if (DictionaryReflection.TryGetGenericDictionaryKV(memberType, out var k, out var v))
         {
             keyType = k;
             valueType = v;
@@ -176,53 +186,132 @@ internal sealed class ReflectionTweakSource : ITweakSource
         {
         }
 
-        var keys = new List<string>();
-        var defaults = new Dictionary<string, string?>();
+        var keys = new List<object>();
+        var defaults = new Dictionary<object, object?>();
 
         if (dictObj is IDictionary nong)
         {
-            foreach (var k2 in nong.Keys)
+            foreach (var kay in nong.Keys)
             {
-                var s = k2?.ToString() ?? string.Empty;
-                keys.Add(s);
+                keys.Add(kay);
                 try
-                { defaults[s] = ToSerializable(nong[k2!])?.ToString(); }
+                {
+                    defaults[kay] = nong[kay];
+                }
                 catch
                 {
                 }
             }
         }
-        else if (dictObj != null && TryGetGenericDictionaryKV(dictObj.GetType(), out var kT, out var vT))
+        else if (dictObj != null && DictionaryReflection.TryGetGenericDictionaryKV(dictObj.GetType(), out var kT, out var vT))
         {
-            var kvpType = typeof(KeyValuePair<,>).MakeGenericType(kT, vT);
+            var kvpType = typeof(KeyValuePair).MakeGenericType(kT, vT);
             foreach (var item in (IEnumerable)dictObj)
             {
                 var keyProp = kvpType.GetProperty("Key");
                 var valProp = kvpType.GetProperty("Value");
                 var ks = keyProp!.GetValue(item)?.ToString() ?? string.Empty;
                 var vv = valProp!.GetValue(item);
+
                 keys.Add(ks);
                 defaults[ks] = ToSerializable(vv)?.ToString();
             }
         }
 
+        if (min < 0)
+            min = 0;
+
         return new DictEntry(
-            owner.FullName ?? owner.Name,
-            member.Name,
-            label ?? member.Name,
-            category ?? "General",
-            keyType,
-            valueType,
-            keys,
-            defaults,
-            callback
+            OwnerType: owner.FullName ?? owner.Name,
+            Name: member.Name,
+            Label: label ?? member.Name,
+            Category: category ?? "General",
+            Max: max,
+            Min: min,
+            KeyType: keyType,
+            ValueType: valueType,
+            Keys: keys,
+            Defaults: defaults,
+            Callback: callback
+        );
+    }
+
+    private CollectionEntry BuildCollection(Type owner, MemberInfo member)
+    {
+        var (label, min, max, category, callback) = _attributes.ReadTweak(member);
+        var memberType = member is FieldInfo fi ? fi.FieldType : ((PropertyInfo)member).PropertyType;
+        Type elementType = typeof(string);
+
+        if (memberType.IsArray)
+        {
+            elementType = memberType.GetElementType() ?? typeof(string);
+        }
+        else if (memberType.IsGenericType && memberType.GetGenericArguments().Length == 1)
+        {
+            elementType = memberType.GetGenericArguments()[0];
+        }
+
+        object? collObj = null;
+        try
+        {
+            if (member is FieldInfo f && f.IsStatic)
+            {
+                collObj = f.GetValue(null);
+            }
+            else if (member is PropertyInfo p)
+            {
+                var gm = p.GetGetMethod(true);
+
+                if (gm?.IsStatic == true)
+                    collObj = p.GetValue(null);
+            }
+        }
+        catch
+        {
+        }
+
+        if (collObj != null && memberType.IsArray && double.IsNaN(max))
+        {
+            var arr = (Array)collObj;
+            max = arr.Length;
+        }
+
+        var defaults = new List<string>();
+
+        if (collObj is ICollection nong)
+        {
+            foreach (var item in nong)
+            {
+                try
+                {
+                    defaults.Add(ToSerializable(item)?.ToString() ?? string.Empty);
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        if (min < 0)
+            min = 0;
+
+        return new CollectionEntry(
+            OwnerType: owner.FullName ?? owner.Name,
+            Name: member.Name,
+            Label: label ?? member.Name,
+            Category: category ?? "General",
+            Max: max,
+            Min: min,
+            Defaults: defaults,
+            ElementType: elementType,
+            Callback: callback
         );
     }
 
     private static SchemaValueKind ToKind(Type t)
     {
-        if (IsDictionaryType(t))
-            return SchemaValueKind.Dictionary;
+        if (t.IsEnum)
+            return SchemaValueKind.Enum;
 
         if (t == typeof(bool))
             return SchemaValueKind.Boolean;
@@ -239,8 +328,11 @@ internal sealed class ReflectionTweakSource : ITweakSource
         if (t == typeof(string))
             return SchemaValueKind.String;
 
-        if (t.IsEnum)
-            return SchemaValueKind.Enum;
+        if (IsDictionaryType(t))
+            return SchemaValueKind.Dictionary;
+
+        if (IsCollectionType(t))
+            return SchemaValueKind.Collection;
 
         return SchemaValueKind.String;
     }
@@ -250,33 +342,25 @@ internal sealed class ReflectionTweakSource : ITweakSource
         if (typeof(IDictionary).IsAssignableFrom(t))
             return true;
 
-        if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IDictionary<,>))
+        if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IDictionary))
             return true;
 
-        return t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDictionary<,>));
+        if (t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDictionary)))
+            return true;
+
+        return false;
     }
 
-    private static bool TryGetGenericDictionaryKV(Type t, out Type keyType, out Type valueType)
+    private static bool IsCollectionType(Type t)
     {
-        keyType = null!;
-        valueType = null!;
-        if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IDictionary<,>))
-        {
-            var args = t.GetGenericArguments();
-            keyType = args[0];
-            valueType = args[1];
+        if (typeof(ICollection).IsAssignableFrom(t))
+            return true;
 
+        if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(ICollection))
             return true;
-        }
-        var iface = t.GetInterfaces()
-            .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDictionary<,>));
-        if (iface != null)
-        {
-            var args = iface.GetGenericArguments();
-            keyType = args[0];
-            valueType = args[1];
+
+        if (t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICollection)))
             return true;
-        }
 
         return false;
     }

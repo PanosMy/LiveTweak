@@ -41,12 +41,12 @@ internal class Program
         { 3, 30 }
     };
 
-    [LiveTweak("Key Bindings Enable", "Keys")]
-    public static Dictionary<string, bool> KeyBindingsEnable = new()
+    [LiveTweak("Key Bindings Enable", "Keys", Min = 2, Max = 5)]
+    public static Dictionary<string, int[]> KeyBindingsEnable = new()
     {
-        { "Key1", true },
-        { "Key2", false },
-        { "Key3", true }
+        { "Key1", [2, 1]},
+        { "Key2", [10] },
+        { "Key3", [3] }
     };
 
     [LiveTweak("Key Types Bindings ", "Keys")]

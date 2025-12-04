@@ -23,6 +23,10 @@
 		<converters:DictionaryEntryCommandParameterConverter   x:Key="DictionaryEntryCommandParameterConverter"/>
 	</Window.Resources>
 
+	<Window.Resources>
+		<converters:ArrayToStringConverter x:Key="ArrayToStringConverter"/>
+	</Window.Resources>
+
 	<Window.DataTemplates>
 		<DataTemplate DataType="{x:Type vm:HeaderMarker}">
 			<TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,0,0,12"/>
@@ -82,62 +86,98 @@
 			</Border>
 		</DataTemplate>
 
+		
+		
 		<DataTemplate DataType="{x:Type vm:DictionaryState}">
 			<Border BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6" Margin="0,6" Background="#262626">
-				<ItemsControl ItemsSource="{Binding DictionaryEntryViewModels}">
-					<ItemsControl.ItemTemplate>
-						<DataTemplate>
-							<Border BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6" Margin="10,10" Background="#262626">
-								<Grid ColumnDefinitions="*,80,80" Margin="10">
-									<StackPanel>
-										<TextBlock  Text="{Binding Key}" FontWeight="SemiBold" Foreground="Gainsboro" />
-										
-										<TextBlock Text="{Binding Error}" FontWeight="SemiBold" Foreground="Red"
-																IsVisible="{Binding Error, Converter={StaticResource NullToVisible}}" />
+				<Grid RowDefinitions="*,*,*" Margin="10">
+					<TextBlock Grid.Row="0" Text="{Binding Label}"/>
+					<ItemsControl Grid.Row="1" ItemsSource="{Binding DictionaryEntryViewModels}"/>
+					<StackPanel Grid.Row="2" Orientation="Horizontal">
+						<Button  Content="Set"
+							Command="{Binding DataContext.SetDictionaryValueCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+							CommandParameter="{Binding}"
+							Margin="6,0,0,0"/>
+						<Button  Content="Add"
+							Command="{Binding AddEntryCommand}"
+							Margin="6,0,0,0"
+							IsEnabled="{Binding AddButtonEnabled}"/>
+						<Button Content="Revert All"
+							Command="{Binding DataContext.RevertDictionaryValueCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+							Margin="6,0,0,0">
+							<Button.CommandParameter>
+								<MultiBinding Converter="{StaticResource DictionaryEntryCommandParameterConverter}">
+									<Binding/>
+									<Binding/>
+								</MultiBinding>
+							</Button.CommandParameter>
+						</Button>
+					</StackPanel>
+				</Grid>
+			</Border>
+		</DataTemplate>
 
-										<Grid ColumnDefinitions="*,*,*,*">
-											<Border Background="#3F3F46" Grid.Column="0" CornerRadius="4" Padding="6,2" Margin="0,2,10,2">
-												<TextBlock Text="{Binding Default, StringFormat=default: {0}}" Foreground="White" FontSize="11"/>
-											</Border>
-											<Border Background="#3F3F46" Grid.Column="1" CornerRadius="4" Padding="6,2" Margin="10,2" >
-												<TextBlock Text="{Binding Current, StringFormat=Current: {0}}" Foreground="White" FontSize="11"/>
-											</Border>
-											<Border Background="#3F3F46" Grid.Column="2" CornerRadius="4" Padding="6,2" Margin="10,2">
-												<TextBlock Text="{Binding ValueTypeName, StringFormat=Key type: {0}},RelativeSource={RelativeSource AncestorType=UserControl}}" Foreground="White" FontSize="11"/>
-											</Border>
-											<Border Background="#3F3F46" Grid.Column="3" CornerRadius="4" Padding="6,2" Margin="10,2,0,2">
-												<TextBlock Text="{Binding ValueTypeName, StringFormat=Value type: {0}}" Foreground="White" FontSize="11"/>
-											</Border>
-										</Grid>
-											<TextBox Text="{Binding Value, Mode=TwoWay}" Grid.Column="1" Margin="0,6,0,0" IsVisible="{Binding IsBooleanType , Converter={StaticResource Invert}}"/>
-										<CheckBox IsChecked="{Binding Value}" Content="{Binding Current, StringFormat=Current value: {0}}" IsVisible="{Binding IsBooleanType}" />
-									</StackPanel>
-									<Button Grid.Column="1" Content="Set"
-													Command="{Binding DataContext.SetDictionaryValueCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-													Margin="6,0,0,0"
-													IsEnabled="{Binding SetButtonEnabled}">
-										<Button.CommandParameter>
-											<MultiBinding Converter="{StaticResource DictionaryEntryCommandParameterConverter}">
-												<Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
-												<Binding/>
-											</MultiBinding>
-										</Button.CommandParameter>
-									</Button>
-									<Button Grid.Column="2" Content="Revert"
-													Command="{Binding DataContext.RevertDictionaryValueCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-													IsEnabled="{Binding HaveChange}" Margin="6,0,0,0">
-										<Button.CommandParameter>
-											<MultiBinding Converter="{StaticResource DictionaryEntryCommandParameterConverter}">
-												<Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
-												<Binding/>
-											</MultiBinding>
-										</Button.CommandParameter>
-									</Button>
-								</Grid>
+		<DataTemplate DataType="{x:Type vm:DictionaryEntryViewModel}">
+			<Border BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6" Margin="10,10" Background="#262626">
+				<Grid ColumnDefinitions="*,80,80" Margin="10">
+					<StackPanel>
+						<Grid ColumnDefinitions="*,*,*">
+							<Border Background="#3F3F46" Grid.Column="0" CornerRadius="4" Padding="6,2" Margin="0,2,10,2">
+								<TextBlock Text="{Binding KeyDefault}" Foreground="White" FontSize="11"/>
 							</Border>
-						</DataTemplate>
-					</ItemsControl.ItemTemplate>
-				</ItemsControl>
+							<Border Background="#3F3F46" Grid.Column="1" CornerRadius="4" Padding="6,2" Margin="10,2" >
+								<TextBlock Text="{Binding KeyCurrent, StringFormat=Key Current: {0}}" Foreground="White" FontSize="11"/>
+							</Border>
+							<Border Background="#3F3F46" Grid.Column="2" CornerRadius="4" Padding="6,2" Margin="10,2,0,2">
+								<TextBlock Text="{Binding KeyTypeName, StringFormat=Key type: {0}}" Foreground="White" FontSize="11"/>
+							</Border>
+						</Grid>
+						<ComboBox ItemsSource="{Binding KeyEnums}" 
+									SelectedItem="{Binding KeyEnum, Mode=TwoWay}" 
+									IsVisible="{Binding KeyIsEnum}" />
+						<TextBlock Text="{Binding KeyError}" FontWeight="SemiBold" Foreground="Red"
+								IsVisible="{Binding KeyError, Converter={StaticResource NullToVisible}}" />
+						<TextBox  Text="{Binding Key, Mode=TwoWay}"
+											IsVisible="{Binding KeyIsEnum, Converter={StaticResource Invert}}"
+											FontWeight="SemiBold" Foreground="Gainsboro"  Margin="0,2" />
+
+
+
+						<Grid ColumnDefinitions="*,*,*">
+							<Border Background="#3F3F46" Grid.Column="0" CornerRadius="4" Padding="6,2" Margin="0,2,10,2">
+								<TextBlock Text="{Binding ValueDefault}" Foreground="White" FontSize="11"/>
+							</Border>
+							<Border Background="#3F3F46" Grid.Column="1" CornerRadius="4" Padding="6,2" Margin="10,2" >
+								<TextBlock Text="{Binding ValueCurrent}" Foreground="White" FontSize="11"/>
+							</Border>
+							<Border Background="#3F3F46" Grid.Column="2" CornerRadius="4" Padding="6,2" Margin="10,2,0,2">
+								<TextBlock Text="{Binding ValueTypeName, StringFormat=Value type: {0}}" Foreground="White" FontSize="11"/>
+							</Border>
+						</Grid>
+						<TextBlock Text="{Binding ValueError}" FontWeight="SemiBold" Foreground="Red"
+								IsVisible="{Binding ValueError, Converter={StaticResource NullToVisible}}" />
+						<CheckBox IsChecked="{Binding ValueBoolean, Mode=TwoWay}" Content="{Binding Current, StringFormat=Current value: {0}}" IsVisible="{Binding IsBooleanType}" />
+						<TextBox Text="{Binding Value, Mode=TwoWay}"  Grid.Column="1" Margin="0,6,0,0" IsVisible="{Binding IsValueTextBoxShowing}"/>
+						<TextBox Text="{Binding ValueArray, Converter={StaticResource ArrayToStringConverter}, Mode=TwoWay}" Grid.Column="1" Margin="0,6,0,0" IsVisible="{Binding ValueIsArray}"/>
+						<ComboBox ItemsSource="{Binding ValueEnums}"
+							SelectedItem="{Binding ValueEnum, Mode=TwoWay}"
+							IsVisible="{Binding ValueIsEnum}" />
+					</StackPanel>
+					<Button Grid.Column="1" Content="Remove"
+						Command="{Binding DataContext.RemoveEntryCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+						CommandParameter="{Binding}"
+						IsEnabled="{Binding DataContext.RemoveButtonEnabled, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Margin="6,0,0,0"/>
+					<Button Grid.Column="2" Content="Revert"
+									Command="{Binding DataContext.RevertDictionaryValueCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+									IsEnabled="{Binding HaveChange}" Margin="6,0,0,0">
+						<Button.CommandParameter>
+							<MultiBinding Converter="{StaticResource DictionaryEntryCommandParameterConverter}">
+								<Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+								<Binding/>
+							</MultiBinding>
+						</Button.CommandParameter>
+					</Button>
+				</Grid>
 			</Border>
 		</DataTemplate>
 

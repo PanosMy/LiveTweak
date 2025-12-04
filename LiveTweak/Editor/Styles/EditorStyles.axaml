@@ -8,6 +8,20 @@
 		<Setter Property="BorderThickness" Value="1"/>
 		<Setter Property="Padding" Value="6,4"/>
 	</Style>
+	<Style Selector="ComboBox">
+		<Setter Property="Background" Value="#232323"/>
+		<Setter Property="Foreground" Value="White"/>
+		<Setter Property="BorderBrush" Value="#444"/>
+		<Setter Property="BorderThickness" Value="1"/>
+		<Setter Property="Padding" Value="6,4"/>
+	</Style>
+	<Style Selector="CheckBox">
+		<Setter Property="Height" Value="28"/>
+		<Setter Property="VerticalContentAlignment" Value="Center"/>
+		<Setter Property="Padding" Value="6,0,6,0"/>
+		<Setter Property="FontSize" Value="12"/>
+	</Style>
+
 
 	<Style Selector="Border.type-pill">
 		<Setter Property="CornerRadius" Value="4"/>

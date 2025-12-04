@@ -1,9 +1,10 @@
-﻿using System.Reflection;
+﻿using System.Collections;
+using System.Reflection;
 using LiveTweak.Application.Abstractions;
 using LiveTweak.Domain.Abstractions;
 using LiveTweak.Domain.Models;
-using Convert = LiveTweak.Infrastructure.Helper.Convert;
-
+using LiveTweak.Infrastructure.Services;
+using dictEntry = LiveTweak.Domain.Models.DictionaryEntry;
 namespace LiveTweak.Infrastructure.Reflection;
 
 internal sealed class ReflectionCommandDispatcher : ITweakCommandDispatcher
@@ -28,75 +29,113 @@ internal sealed class ReflectionCommandDispatcher : ITweakCommandDispatcher
         }
     }
 
-    Task<TweakCommandResult> ITweakCommandDispatcher.DispatchAsync(TweakCommand command)
+    Task<TweakCommandResult<T>> ITweakCommandDispatcher.DispatchAsync<T>(TweakCommand<T> command)
     {
         EnsureIndex();
         if (!_index.TryGetValue(command.EntryId, out var entry))
-            return Task.FromResult(new TweakCommandResult(false, "Entry not found"));
+            return Task.FromResult(new TweakCommandResult<T>(false, "Entry not found"));
 
-        return command.Type switch
+        object result = command.Type switch
         {
-            TweakCommandType.SetValue => HandleSet((ValueEntry)entry, command.Value),
+            TweakCommandType.SetValue => HandleSet((ValueEntry)entry, command.Value?.ToString()),
             TweakCommandType.RevertValue => HandleRevert((ValueEntry)entry),
             TweakCommandType.InvokeAction => HandleInvoke((ActionEntry)entry),
-            TweakCommandType.SetDictionaryValue => HandleDictSet((DictionaryEntry)entry, command.Value, command.Key!),
-            TweakCommandType.RevertDictionaryValue => HandleDictRevert((DictionaryEntry)entry, command.Key!),
-            _ => Task.FromResult(new TweakCommandResult(false, "Unsupported command type"))
+            TweakCommandType.SetDictionaryValue => HandleDictSet((dictEntry)entry, command.Value as IDictionary),
+            TweakCommandType.RevertDictionaryValue => HandleDictRevert((dictEntry)entry, command.Key),
+            TweakCommandType.SetCollectionValue => HandleCollectionSet((CollectionEntry)entry, command.Value as ICollection),
+            TweakCommandType.RevertCollectionValue => HandleCollectionRevert((CollectionEntry)entry),
+            _ => Task.FromResult(new TweakCommandResult<T>(false, "Unsupported command type"))
         };
+
+        return (Task<TweakCommandResult<T>>)result;
     }
 
-    private Task<TweakCommandResult> HandleDictSet(DictionaryEntry entry, string? value, string key)
+    private Task<TweakCommandResult<ICollection>> HandleCollectionSet(CollectionEntry entry, ICollection? value)
     {
-        var ok = DictionaryReflection.TrySetStaticValue(entry, key, value, out var err);
+        var ok = CollectionReflection.TrySetStaticValue(entry, value, out var err);
         if (!ok)
-            return Task.FromResult(new TweakCommandResult(false, err ?? "Set failed"));
+            return Task.FromResult(new TweakCommandResult<ICollection>(false, err ?? "Set failed"));
 
-        var keyWithType = Convert.ChangeType(key, entry.KeyType);
-        var valueWithType = Convert.ChangeType(value, entry.ValueType);
-        TryInvokeOnChanged(entry.OwnerType, entry.Callback, entry.Label, keyWithType, valueWithType);
+        TryInvokeOnChanged(entry.OwnerType, entry.Callback, entry.Label, value);
 
-        var current = DictionaryReflection.TryGetCurrentOrDefault(entry, key);
+        var current = CollectionReflection.TryGetCurrentOrDefault(entry);
 
-        return Task.FromResult(new TweakCommandResult(true, "Set ok", current));
+        return Task.FromResult(new TweakCommandResult<ICollection>(true, "Set ok", current));
     }
 
-    private Task<TweakCommandResult> HandleDictRevert(DictionaryEntry entry, string key)
+    private Task<TweakCommandResult<ICollection>> HandleCollectionRevert(CollectionEntry entry)
     {
-        var def = DictionaryReflection.TryGetDefault(entry, key);
-        var ok = DictionaryReflection.TrySetStaticValue(entry, key, def, out var err);
+        var def = entry.Defaults;
+        var ok = CollectionReflection.TrySetStaticValue(entry, def, out var err);
         if (!ok)
-            return Task.FromResult(new TweakCommandResult(false, err ?? "Revert failed"));
+            return Task.FromResult(new TweakCommandResult<ICollection>(false, err ?? "Revert failed"));
 
-        var keyWithType = Convert.ChangeType(key, entry.KeyType);
-        var valueWithType = Convert.ChangeType(def, entry.ValueType);
-        TryInvokeOnChanged(entry.OwnerType, entry.Callback, entry.Label, keyWithType, valueWithType);
+        TryInvokeOnChanged(entry.OwnerType, entry.Callback, entry.Label, def);
 
-        return Task.FromResult(new TweakCommandResult(true, "Reverted", def));
+        return Task.FromResult(new TweakCommandResult<ICollection>(true, "Reverted", def));
     }
 
-    private Task<TweakCommandResult> HandleSet(ValueEntry valueEntry, string? value)
+    private Task<TweakCommandResult<IDictionary>> HandleDictSet(dictEntry entry, IDictionary? value)
+    {
+        var ok = DictionaryReflection.TrySetStaticValue(entry, value, out var err);
+        if (!ok)
+            return Task.FromResult(new TweakCommandResult<IDictionary>(false, err ?? "Set failed"));
+
+        TryInvokeOnChanged(entry.OwnerType, entry.Callback, entry.Label, value);
+
+        var current = DictionaryReflection.TryGetCurrentOrDefault(entry);
+
+        return Task.FromResult(new TweakCommandResult<IDictionary>(true, "Set ok", current));
+    }
+
+    private Task<TweakCommandResult<IDictionary>> HandleDictRevert(dictEntry entry, object? key)
+    {
+        IDictionary newDictionary;
+        if (key == null)
+            newDictionary = entry.Defaults;
+        else
+        {
+            var currentDict = DictionaryReflection.TryGetCurrentOrDefault(entry);
+            var defaultDict = entry.Defaults;
+            var defValue = defaultDict[key?.ToString() ?? string.Empty];
+            var keyWithType = Helper.Convert.ChangeType(key, entry.KeyType);
+            var valueWithType = Helper.Convert.ChangeType(defValue, entry.ValueType);
+            currentDict[keyWithType] = valueWithType;
+            newDictionary = currentDict;
+        }
+
+        var ok = DictionaryReflection.TrySetStaticValue(entry, newDictionary, out var err);
+        if (!ok)
+            return Task.FromResult(new TweakCommandResult<IDictionary>(false, err ?? "Revert failed"));
+
+        TryInvokeOnChanged(entry.OwnerType, entry.Callback, entry.Label, newDictionary);
+
+        return Task.FromResult(new TweakCommandResult<IDictionary>(true, "Reverted", newDictionary));
+    }
+
+    private Task<TweakCommandResult<string>> HandleSet(ValueEntry valueEntry, string? value)
     {
         var ok = ValueReflection.TrySetStaticValue(valueEntry, value, out var err);
         if (!ok)
-            return Task.FromResult(new TweakCommandResult(false, err ?? "Set failed"));
+            return Task.FromResult(new TweakCommandResult<string>(false, err ?? "Set failed"));
 
 
-        TryInvokeOnChanged(valueEntry.OwnerType, valueEntry.Callback, valueEntry.Label);
+        TryInvokeOnChanged(valueEntry.OwnerType, valueEntry.Callback, valueEntry.Label, value);
         var current = ValueReflection.TryGetCurrentOrDefault(valueEntry);
 
-        return Task.FromResult(new TweakCommandResult(true, "Set ok", current));
+        return Task.FromResult(new TweakCommandResult<string>(true, "Set ok", current));
     }
 
-    private Task<TweakCommandResult> HandleRevert(ValueEntry valueEntry)
+    private Task<TweakCommandResult<string>> HandleRevert(ValueEntry valueEntry)
     {
         var def = ValueReflection.TryGetDefault(valueEntry);
         var ok = ValueReflection.TrySetStaticValue(valueEntry, def, out var err);
         if (!ok)
-            return Task.FromResult(new TweakCommandResult(false, err ?? "Revert failed"));
+            return Task.FromResult(new TweakCommandResult<string>(false, err ?? "Revert failed"));
 
-        TryInvokeOnChanged(valueEntry.OwnerType, valueEntry.Callback, valueEntry.Label);
+        TryInvokeOnChanged(valueEntry.OwnerType, valueEntry.Callback, valueEntry.Label, def);
 
-        return Task.FromResult(new TweakCommandResult(true, "Reverted", def));
+        return Task.FromResult(new TweakCommandResult<string>(true, "Reverted", def));
     }
 
     private Task<TweakCommandResult> HandleInvoke(ActionEntry a)
@@ -117,12 +156,11 @@ internal sealed class ReflectionCommandDispatcher : ITweakCommandDispatcher
         }
     }
 
-    public static void TryInvokeOnChanged(
+    public static void TryInvokeOnChanged<T>(
         string ownerTypeName,
         string? methodName,
         string member,
-        object? value = null,
-        object? key = null)
+        T? value)
     {
         if (string.IsNullOrEmpty(ownerTypeName) || string.IsNullOrEmpty(methodName))
             return;
@@ -143,17 +181,9 @@ internal sealed class ReflectionCommandDispatcher : ITweakCommandDispatcher
             var parameters = method.GetParameters();
             try
             {
-                if (parameters.Length == 3 &&
-                    parameters[0].ParameterType == typeof(string) &&
-                    parameters[1].ParameterType.IsAssignableFrom(key?.GetType() ?? typeof(object)) &&
-                    parameters[2].ParameterType.IsAssignableFrom(value?.GetType() ?? typeof(object)))
-                {
-                    method.Invoke(null, [member, key, value]);
-                    return;
-                }
-                else if (parameters.Length == 2 &&
-                    parameters[0].ParameterType == typeof(string) &&
-                    parameters[1].ParameterType.IsAssignableFrom(value?.GetType() ?? typeof(object)))
+                if (parameters.Length == 2 &&
+                   parameters[0].ParameterType == typeof(string) &&
+                   parameters[1].ParameterType.IsAssignableFrom(value?.GetType() ?? typeof(object)))
                 {
                     method.Invoke(null, [member, value]);
                     return;

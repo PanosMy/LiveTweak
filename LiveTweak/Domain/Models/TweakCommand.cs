@@ -1,8 +1,12 @@
 ﻿namespace LiveTweak.Domain.Models;
 
-public sealed record TweakCommand(
+public sealed record TweakCommand<T>(
     TweakCommandType Type,
     string EntryId,
-    string? Value = null,
-    string? Key = null // For dictionary entries only
+    T? Value = default,
+    object? Key = default
+);
+public sealed record TweakCommand(
+    TweakCommandType Type,
+    string EntryId
 );

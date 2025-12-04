@@ -14,7 +14,6 @@ public sealed class LiveTweakAttribute : Attribute
     //   void Method()
     //   void Method(TValue value) 
     //   void Method(string member, TValue value)
-    //   void Method(string member, TValue key, TValue value)  // for dictionary sets
     public string OnChanged { get; set; }
 
     public LiveTweakAttribute(string label)

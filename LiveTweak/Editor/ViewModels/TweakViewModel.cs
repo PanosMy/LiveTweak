@@ -1,11 +1,14 @@
-﻿using System.Collections.ObjectModel;
+﻿using System.Collections;
+using System.Collections.ObjectModel;
 using System.Reactive;
 using LiveTweak.Application.Abstractions;
 using LiveTweak.Domain.Abstractions;
 using LiveTweak.Domain.Models;
 using LiveTweak.Editor.Parameters;
 using LiveTweak.Infrastructure.Reflection;
+using LiveTweak.Infrastructure.Services;
 using ReactiveUI;
+using DictEntry = LiveTweak.Domain.Models.DictionaryEntry;
 
 namespace LiveTweak.Editor.ViewModels;
 
@@ -47,7 +50,7 @@ public sealed class TweakViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
     public ReactiveCommand<EditState, Unit> SetValueCommand { get; }
     public ReactiveCommand<EditState, Unit> RevertValueCommand { get; }
-    public ReactiveCommand<DictionaryEntryCommandParameter, Unit> SetDictionaryValueCommand { get; }
+    public ReactiveCommand<DictionaryState, Unit> SetDictionaryValueCommand { get; }
     public ReactiveCommand<DictionaryEntryCommandParameter, Unit> RevertDictionaryValueCommand { get; }
     public ReactiveCommand<TweakEntry, Unit> InvokeActionCommand { get; }
 
@@ -60,7 +63,7 @@ public sealed class TweakViewModel : ReactiveObject
         RefreshCommand = ReactiveCommand.CreateFromTask(RefreshAsync);
         SetValueCommand = ReactiveCommand.CreateFromTask<EditState>(SetValueAsync);
         RevertValueCommand = ReactiveCommand.CreateFromTask<EditState>(RevertValueAsync);
-        SetDictionaryValueCommand = ReactiveCommand.CreateFromTask<DictionaryEntryCommandParameter>(SetDictionaryValueAsync);
+        SetDictionaryValueCommand = ReactiveCommand.CreateFromTask<DictionaryState>(SetDictionaryValueAsync);
         RevertDictionaryValueCommand = ReactiveCommand.CreateFromTask<DictionaryEntryCommandParameter>(RevertDictionaryValueAsync);
         InvokeActionCommand = ReactiveCommand.CreateFromTask<TweakEntry>(InvokeAsync);
 
@@ -92,7 +95,7 @@ public sealed class TweakViewModel : ReactiveObject
             if (_rawIndex.TryGetValue(v.Id, out var rawEntry) && rawEntry is ValueEntry valueEntry)
             {
                 var current = ValueReflection.TryGetCurrentOrDefault(valueEntry);
-                var def = ValueReflection.TryGetDefault(valueEntry);
+                var def = valueEntry.DefaultValue?.ToString();
                 var min = valueEntry.Min;
                 var max = valueEntry.Max;
 
@@ -104,11 +107,11 @@ public sealed class TweakViewModel : ReactiveObject
         foreach (var v in _all.Where(e => e.Kind == TweakEntryKind.Dictionary))
         {
 
-            if (_rawIndex.TryGetValue(v.Id, out var rawEntry) && rawEntry is DictionaryEntry dictionaryEntry)
+            if (_rawIndex.TryGetValue(v.Id, out var rawEntry) && rawEntry is DictEntry dictionaryEntry)
             {
                 var defualt = dictionaryEntry.Defaults;
-                var currunt = dictionaryEntry.Keys.Select(e => DictionaryReflection.TryGetCurrentOrDefault(dictionaryEntry, e)).ToList();
-                _dictEdits.Add(new DictionaryState(v.Id, v.Label, defualt, currunt, dictionaryEntry.KeyType, dictionaryEntry.ValueType));
+                var currunt = DictionaryReflection.TryGetCurrentOrDefault(dictionaryEntry);
+                _dictEdits.Add(new DictionaryState(v.Id, v.Label, defualt, currunt, dictionaryEntry.Min, dictionaryEntry.Max, dictionaryEntry.KeyType, dictionaryEntry.ValueType));
             }
         }
 
@@ -145,7 +148,7 @@ public sealed class TweakViewModel : ReactiveObject
 
     private async Task SetValueAsync(EditState state)
     {
-        var cmd = new TweakCommand(TweakCommandType.SetValue, state.Id, state.Edited);
+        var cmd = new TweakCommand<string>(TweakCommandType.SetValue, state.Id, state.Edited);
         var res = await _dispatcher.DispatchAsync(cmd);
 
         Status = res.Ok ? $"Set '{state.Label}' = {res.NewValue}" : $"Set failed '{state.Label}': {res.Message}";
@@ -159,7 +162,7 @@ public sealed class TweakViewModel : ReactiveObject
 
     private async Task RevertValueAsync(EditState state)
     {
-        var cmd = new TweakCommand(TweakCommandType.RevertValue, state.Id);
+        var cmd = new TweakCommand<string>(TweakCommandType.RevertValue, state.Id);
         var res = await _dispatcher.DispatchAsync(cmd);
 
         Status = res.Ok ? $"Reverted '{state.Label}'" : $"Revert failed '{state.Label}': {res.Message}";
@@ -171,20 +174,17 @@ public sealed class TweakViewModel : ReactiveObject
         }
     }
 
-    private async Task SetDictionaryValueAsync(DictionaryEntryCommandParameter state)
+    private async Task SetDictionaryValueAsync(DictionaryState state)
     {
-        var id = state.DictionaryState.Id;
-        var key = state.Entry.Key;
-        var value = state.Entry.Value?.ToString();
-        var cmd = new TweakCommand(TweakCommandType.SetDictionaryValue, id, value, key);
+        var id = state.Id;
+        var dictionary = state.TakeDictionary();
+        var cmd = new TweakCommand<IDictionary>(TweakCommandType.SetDictionaryValue, id, dictionary);
         var res = await _dispatcher.DispatchAsync(cmd);
 
-        Status = res.Ok ? $"Set '{state.DictionaryState.Label}' = {res.NewValue}" : $"Set failed '{state.DictionaryState.Label}': {res.Message}";
+        Status = res.Ok ? $"Set '{state.Label}' Successful" : $"Set failed '{state.Label}': {res.Message}";
         if (res.Ok)
         {
-            state.Entry.Value = res.NewValue;
-            state.Entry.SetButtonEnabled = false;
-            state.Entry.Current = res.NewValue;
+            state.SetDictionary(res.NewValue!);
         }
     }
 
@@ -192,23 +192,20 @@ public sealed class TweakViewModel : ReactiveObject
     {
         var id = state.DictionaryState.Id;
         var label = state.DictionaryState.Label;
-        var key = state.Entry.Key;
-        var cmd = new TweakCommand(TweakCommandType.RevertDictionaryValue, id, Key: key);
+        var key = state.Entry?.Key;
+        var cmd = new TweakCommand<IDictionary>(TweakCommandType.RevertDictionaryValue, id, Key: key);
         var res = await _dispatcher.DispatchAsync(cmd);
 
         Status = res.Ok ? $"Reverted '{label}'" : $"Revert failed '{label}': {res.Message}";
         if (res.Ok)
         {
-            state.Entry.Value = res.NewValue;
-            state.Entry.Current = res.NewValue;
-            state.Entry.SetButtonEnabled = false;
+            state.DictionaryState.SetDictionary(res.NewValue!);
         }
     }
 
-
     private async Task InvokeAsync(TweakEntry entry)
     {
-        var cmd = new TweakCommand(TweakCommandType.InvokeAction, entry.Id);
+        var cmd = new TweakCommand<string>(TweakCommandType.InvokeAction, entry.Id);
         var res = await _dispatcher.DispatchAsync(cmd);
 
         Status = res.Ok ? $"Invoked '{entry.Label}'" : $"Invoke failed '{entry.Label}': {res.Message}";

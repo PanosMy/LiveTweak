@@ -1,13 +1,13 @@
 ﻿using System.Reflection;
 using LiveTweak.Domain.Models;
 
-namespace LiveTweak.Infrastructure.Reflection;
+
+namespace LiveTweak.Infrastructure.Services;
 
 public static class ValueReflection
 {
     public static string? TryGetDefault(ValueEntry v)
     {
-        // Try common property names on ValueEntry (DefaultValue/Default/InitialValue/Baseline)
         var t = v.GetType();
         var prop = t.GetProperty("DefaultValue")
                          ?? t.GetProperty("Default")

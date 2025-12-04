@@ -9,6 +9,7 @@ public enum SchemaValueKind
     Double,
     String,
     Enum,
+    Collection,
     Dictionary,
     Action
 }

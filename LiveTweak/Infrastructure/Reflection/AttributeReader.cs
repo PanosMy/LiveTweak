@@ -21,7 +21,10 @@ internal static class AttributeReader
                 }
             }
         }
-        catch { }
+        catch
+        {
+        }
+
         return null;
     }
 
@@ -38,9 +41,11 @@ internal static class AttributeReader
         max = double.NaN;
         category = null;
         callback = null;
+
         var t = attr?.GetType();
         if (t == null)
             return;
+
         try
         {
             label = (string?)t.GetProperty("Label")?.GetValue(attr);
