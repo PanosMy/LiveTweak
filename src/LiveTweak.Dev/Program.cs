@@ -21,6 +21,19 @@ internal class Program
     [LiveTweak("Volume", "Audio", Min = 0, Max = 1, OnChanged = nameof(OnVolumeChanged))]
     public static float MasterVolume = 0.8f;
 
+    [LiveTweak("High score", "Display")]
+    public static int[] HighScores = [100, 200, 300, 0, 0, 0, 0, 0, 0, 0];
+
+    [LiveTweak("Player scores", "Display")]
+    public static int[] PlayerScore = new int[10];
+
+    [LiveTweak("Player Names", "Display")]
+    public static List<string> PlayerNames = ["Alice", "Bob", "Charlie"];
+    [LiveTweak("Empty Array", "Display")]
+    public static int[] EmptyArray;
+
+    [LiveTweak("Player Id", "Display")]
+    public static List<int> PlayerIds = [1, 2, 3, 4, 5];
 
     [LiveTweak("Debug Mode")]
     public static bool DebugEnabled = false;

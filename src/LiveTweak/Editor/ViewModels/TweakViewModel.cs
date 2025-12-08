@@ -23,6 +23,7 @@ public sealed class TweakViewModel : ReactiveObject
     private TweakEntry[] _all = [];
     private readonly ObservableCollection<EditState> _edits = [];
     private readonly ObservableCollection<DictionaryState> _dictEdits = [];
+    private readonly ObservableCollection<CollectionState> _collEdits = [];
     private readonly Dictionary<string, SchemaEntry> _rawIndex = [];
     public string? SelectedCategory
     {
@@ -52,6 +53,8 @@ public sealed class TweakViewModel : ReactiveObject
     public ReactiveCommand<EditState, Unit> RevertValueCommand { get; }
     public ReactiveCommand<DictionaryState, Unit> SetDictionaryValueCommand { get; }
     public ReactiveCommand<DictionaryEntryCommandParameter, Unit> RevertDictionaryValueCommand { get; }
+    public ReactiveCommand<CollectionState, Unit> SetCollectionValueCommand { get; }
+    public ReactiveCommand<CollectionState, Unit> RevertCollectionValueCommand { get; }
     public ReactiveCommand<TweakEntry, Unit> InvokeActionCommand { get; }
 
     public TweakViewModel()
@@ -65,6 +68,8 @@ public sealed class TweakViewModel : ReactiveObject
         RevertValueCommand = ReactiveCommand.CreateFromTask<EditState>(RevertValueAsync);
         SetDictionaryValueCommand = ReactiveCommand.CreateFromTask<DictionaryState>(SetDictionaryValueAsync);
         RevertDictionaryValueCommand = ReactiveCommand.CreateFromTask<DictionaryEntryCommandParameter>(RevertDictionaryValueAsync);
+        SetCollectionValueCommand = ReactiveCommand.CreateFromTask<CollectionState>(SetCollectionValueAsync);
+        RevertCollectionValueCommand = ReactiveCommand.CreateFromTask<CollectionState>(RevertCollectionValueAsync);
         InvokeActionCommand = ReactiveCommand.CreateFromTask<TweakEntry>(InvokeAsync);
 
         var raw = source.BuildSchema()?.ToArray() ?? [];
@@ -115,6 +120,19 @@ public sealed class TweakViewModel : ReactiveObject
             }
         }
 
+        _collEdits.Clear();
+        foreach (var v in _all.Where(e => e.Kind == TweakEntryKind.Collection))
+        {
+
+            if (_rawIndex.TryGetValue(v.Id, out var rawEntry) && rawEntry is CollectionEntry collectionEntry)
+            {
+                var defualt = collectionEntry.Defaults;
+                var currunt = CollectionReflection.TryGetCurrentOrDefault(collectionEntry);
+                _collEdits.Add(new CollectionState(v.Id, v.Label, defualt, currunt, collectionEntry.ElementType));
+            }
+        }
+
+
         BuildCurrentItems();
         Status = $"Loaded {Categories.Count} categories";
     }
@@ -129,19 +147,29 @@ public sealed class TweakViewModel : ReactiveObject
 
         foreach (var e in _all.Where(x => x.Category == SelectedCategory))
         {
-            if (e.Kind == TweakEntryKind.Value)
+            switch (e.Kind)
             {
-                var st = _edits.First(s => s.Id == e.Id);
-                CurrentItems.Add(st);
-            }
-            else if (e.Kind == TweakEntryKind.Dictionary)
-            {
-                var st = _dictEdits.First(s => s.Id == e.Id);
-                CurrentItems.Add(st);
-            }
-            else
-            {
-                CurrentItems.Add(e);
+                case TweakEntryKind.Value:
+                    {
+                        var st = _edits.First(s => s.Id == e.Id);
+                        CurrentItems.Add(st);
+                        break;
+                    }
+                case TweakEntryKind.Dictionary:
+                    {
+                        var st = _dictEdits.First(s => s.Id == e.Id);
+                        CurrentItems.Add(st);
+                        break;
+                    }
+                case TweakEntryKind.Collection:
+                    {
+                        var st = _collEdits.First(s => s.Id == e.Id);
+                        CurrentItems.Add(st);
+                        break;
+                    }
+                default:
+                    CurrentItems.Add(e);
+                    break;
             }
         }
     }
@@ -200,6 +228,37 @@ public sealed class TweakViewModel : ReactiveObject
         if (res.Ok)
         {
             state.DictionaryState.SetDictionary(res.NewValue!);
+        }
+    }
+
+    private async Task SetCollectionValueAsync(CollectionState state)
+    {
+        var id = state.Id;
+        var value = state.Value as ICollection;
+        var cmd = new TweakCommand<ICollection>(TweakCommandType.SetCollectionValue, id, value);
+        var res = await _dispatcher.DispatchAsync(cmd);
+
+        Status = res.Ok ? $"Set '{state.Label}' Successful" : $"Set failed '{state.Label}': {res.Message}";
+        if (res.Ok)
+        {
+            state.Value = res.NewValue;
+            state.Current = Helper.Helper.CollectionToString(res.NewValue);
+
+        }
+    }
+
+    private async Task RevertCollectionValueAsync(CollectionState state)
+    {
+        var id = state.Id;
+        var label = state.Label;
+        var cmd = new TweakCommand<ICollection>(TweakCommandType.RevertCollectionValue, id);
+        var res = await _dispatcher.DispatchAsync(cmd);
+
+        Status = res.Ok ? $"Reverted '{label}'" : $"Revert failed '{label}': {res.Message}";
+        if (res.Ok)
+        {
+            state.Value = res.NewValue;
+            state.Current = Helper.Helper.CollectionToString(res.NewValue);
         }
     }
 

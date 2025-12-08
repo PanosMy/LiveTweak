@@ -4,7 +4,7 @@ using Convert = LiveTweak.Infrastructure.Helper.Convert;
 
 namespace LiveTweak.Editor.ViewModels;
 
-public sealed class DictionaryEntryViewModel : INotifyPropertyChanged
+public sealed class DictionaryEntry : INotifyPropertyChanged
 {
     private readonly Type valueType;
     private readonly Type keyType;
@@ -90,7 +90,7 @@ public sealed class DictionaryEntryViewModel : INotifyPropertyChanged
         }
     }
 
-    public IEnumerable? ValueArray
+    public ICollection? ValueArray
     {
         get;
         set
@@ -212,7 +212,7 @@ public sealed class DictionaryEntryViewModel : INotifyPropertyChanged
         }
     }
 
-    public DictionaryEntryViewModel(object? key, object? value, object? defualtValue, object? defaultKey, Type keyType, Type valueType)
+    public DictionaryEntry(object? key, object? value, object? defualtValue, object? defaultKey, Type keyType, Type valueType)
     {
         this.valueType = valueType;
         this.keyType = keyType;
@@ -249,9 +249,9 @@ public sealed class DictionaryEntryViewModel : INotifyPropertyChanged
 
         if (ValueIsArray)
         {
-            ValueArray = value is not IEnumerable enu
+            ValueArray = value is not ICollection coll
                     ? ValueArray = Array.Empty<string>()
-                    : ValueArray = enu;
+                    : ValueArray = coll;
         }
 
     }

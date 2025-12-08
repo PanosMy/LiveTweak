@@ -1,5 +1,5 @@
 <Solution>
-  <Project Path="LiveTweak.Attributes/LiveTweak.Attributes.csproj" />
-  <Project Path="LiveTweak.Dev/LiveTweak.Dev.csproj" Id="820ca8c8-0b93-4daf-8a62-62b873a4925b" />
-  <Project Path="LiveTweak/LiveTweak.csproj" />
+  <Project Path="src/LiveTweak.Attributes/LiveTweak.Attributes.csproj" />
+  <Project Path="src/LiveTweak.Dev/LiveTweak.Dev.csproj" Id="820ca8c8-0b93-4daf-8a62-62b873a4925b" />
+  <Project Path="src/LiveTweak/LiveTweak.csproj" />
 </Solution>

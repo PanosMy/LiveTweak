@@ -240,16 +240,7 @@ internal sealed class ReflectionTweakSource : ITweakSource
     {
         var (label, min, max, category, callback) = _attributes.ReadTweak(member);
         var memberType = member is FieldInfo fi ? fi.FieldType : ((PropertyInfo)member).PropertyType;
-        Type elementType = typeof(string);
-
-        if (memberType.IsArray)
-        {
-            elementType = memberType.GetElementType() ?? typeof(string);
-        }
-        else if (memberType.IsGenericType && memberType.GetGenericArguments().Length == 1)
-        {
-            elementType = memberType.GetGenericArguments()[0];
-        }
+        var elementType = memberType;
 
         object? collObj = null;
         try

@@ -141,6 +141,7 @@ Applied to static parameters methods to make them invocable from the UI.
 - `string`
 - `enum` types
 - `Dictionary<TKey, TValue>` and `IDictionary`
+- `ICollection` types
 
 ## Building
 

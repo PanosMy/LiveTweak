@@ -51,12 +51,12 @@ internal static class CollectionReflection
         return null;
     }
 
-    public static bool TrySetStaticValue(CollectionEntry dictionary, ICollection? value, out string? error)
+    public static bool TrySetStaticValue(CollectionEntry collection, ICollection? value, out string? error)
     {
         error = null;
         try
         {
-            var ownerType = ResolveOwnerType(dictionary.OwnerType);
+            var ownerType = ResolveOwnerType(collection.OwnerType);
             if (ownerType == null)
             {
                 error = "Owner type not found";
@@ -64,28 +64,14 @@ internal static class CollectionReflection
             }
 
             var flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
-            var member = (MemberInfo?)ownerType.GetField(dictionary.Name, flags)
-                                 ?? ownerType.GetProperty(dictionary.Name, flags);
+            var member = (MemberInfo?)ownerType.GetField(collection.Name, flags)
+                                 ?? ownerType.GetProperty(collection.Name, flags);
 
             if (member == null)
             {
                 error = "Collection member not found";
                 return false;
             }
-
-            object? collObj =
-                member is FieldInfo fi ? fi.GetValue(null) :
-                member is PropertyInfo pi ? pi.GetValue(null) :
-                null;
-
-
-            if (collObj is not ICollection)
-            {
-                error = "Target is not a collection";
-                return false;
-            }
-
-
 
             if (member is FieldInfo f)
             {

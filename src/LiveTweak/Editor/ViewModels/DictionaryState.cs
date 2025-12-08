@@ -16,11 +16,11 @@ public sealed class DictionaryState : ReactiveObject
     private readonly double max;
     private readonly double min;
 
-    public ObservableCollection<DictionaryEntryViewModel> DictionaryEntryViewModels { get; }
+    public ObservableCollection<DictionaryEntry> DictionaryEntryViewModels { get; }
 
     public ReactiveCommand<Unit, Unit> AddEntryCommand { get; }
 
-    public ReactiveCommand<DictionaryEntryViewModel, Unit> RemoveEntryCommand { get; }
+    public ReactiveCommand<DictionaryEntry, Unit> RemoveEntryCommand { get; }
 
     public bool AddButtonEnabled
     {
@@ -42,7 +42,7 @@ public sealed class DictionaryState : ReactiveObject
         this.valueType = valueType;
         DictionaryEntryViewModels = [];
         AddEntryCommand = ReactiveCommand.Create(AddEmptyEntry);
-        RemoveEntryCommand = ReactiveCommand.Create<DictionaryEntryViewModel>(RemoveEntry);
+        RemoveEntryCommand = ReactiveCommand.Create<DictionaryEntry>(RemoveEntry);
         this.min = min;
         this.max = max;
         SetDictionary(currentValues);
@@ -68,13 +68,13 @@ public sealed class DictionaryState : ReactiveObject
     {
         DictionaryEntryViewModels.Clear();
 
-        foreach (DictionaryEntry entry in dictionary)
+        foreach (System.Collections.DictionaryEntry entry in dictionary)
         {
             var key = entry.Key;
             var value = entry.Value;
             var defaultKey = defaults?.Contains(key) == true ? key : null;
             var defaultValue = defaults?[key] ?? value;
-            var entryViewModel = new DictionaryEntryViewModel(key, value, defaultValue, defaultKey, keyType, valueType);
+            var entryViewModel = new DictionaryEntry(key, value, defaultValue, defaultKey, keyType, valueType);
             DictionaryEntryViewModels.Add(entryViewModel);
         }
 
@@ -83,13 +83,13 @@ public sealed class DictionaryState : ReactiveObject
 
     internal void AddEmptyEntry()
     {
-        var entryViewModel = new DictionaryEntryViewModel(null, null, null, null, keyType, valueType);
+        var entryViewModel = new DictionaryEntry(null, null, null, null, keyType, valueType);
         DictionaryEntryViewModels.Add(entryViewModel);
 
         EnableOrDisableButtons();
     }
 
-    private void RemoveEntry(DictionaryEntryViewModel model)
+    private void RemoveEntry(DictionaryEntry model)
     {
         DictionaryEntryViewModels.Remove(model);
         EnableOrDisableButtons();

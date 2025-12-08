@@ -26,6 +26,7 @@ internal sealed class ReflectionSchemaProvider : ITweakSchemaProvider
             ValueEntry => TweakEntryKind.Value,
             ActionEntry => TweakEntryKind.Action,
             DictionaryEntry => TweakEntryKind.Dictionary,
+            CollectionEntry => TweakEntryKind.Collection,
             _ => TweakEntryKind.Unknown
         };
         var valueKind = schema is ValueEntry ve ? ve.Kind : SchemaValueKind.Unknown;

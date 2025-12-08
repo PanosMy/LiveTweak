@@ -5,5 +5,6 @@ public enum TweakEntryKind
     Value,
     Action,
     Dictionary,
+    Collection,
     Unknown
 }

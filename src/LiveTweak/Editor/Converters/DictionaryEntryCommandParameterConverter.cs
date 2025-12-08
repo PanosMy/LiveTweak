@@ -13,7 +13,7 @@ public sealed class DictionaryEntryCommandParameterConverter : IMultiValueConver
         return new DictionaryEntryCommandParameter
         {
             DictionaryState = values[0] as DictionaryState ?? default!,
-            Entry = values[1] as DictionaryEntryViewModel ?? default!
+            Entry = values[1] as DictionaryEntry ?? default!
         };
     }
 }

@@ -117,7 +117,7 @@
 			</Border>
 		</DataTemplate>
 
-		<DataTemplate DataType="{x:Type vm:DictionaryEntryViewModel}">
+		<DataTemplate DataType="{x:Type vm:DictionaryEntry}">
 			<Border BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6" Margin="10,10" Background="#262626">
 				<Grid ColumnDefinitions="*,80,80" Margin="10">
 					<StackPanel>
@@ -180,6 +180,38 @@
 				</Grid>
 			</Border>
 		</DataTemplate>
+
+
+		<DataTemplate DataType="{x:Type vm:CollectionState}">
+			<Border BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6" Margin="0,6" Background="#262626">
+				<Grid ColumnDefinitions="*,80,80" Margin="10">
+					<StackPanel>
+						<TextBlock  Text="{Binding Label}" FontWeight="SemiBold" Foreground="Gainsboro"/>
+						<TextBlock Text="{Binding Error}" FontWeight="SemiBold" Foreground="Red"
+											  IsVisible="{Binding Error, Converter={StaticResource NullToVisible}}" />
+
+						<Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+							<Border Background="#3F3F46" Grid.Column="0" CornerRadius="4" Padding="6,2" Margin="0,2,10,2">
+								<TextBlock Text="{Binding Default, StringFormat=default: {0}}" Foreground="White" FontSize="11"/>
+							</Border>
+							<Border Background="#3F3F46" Grid.Column="1" CornerRadius="4" Padding="6,2" Margin="10,2"  IsVisible="{Binding IsBooleanType , Converter={StaticResource Invert}}">
+								<TextBlock Text="{Binding Current, StringFormat=Current: {0}}" Foreground="White" FontSize="11"/>
+							</Border>
+						</Grid>
+
+						<TextBox Text="{Binding Value, Converter={StaticResource ArrayToStringConverter}, Mode=TwoWay}" Margin="0,6,0,0"/>
+					</StackPanel>
+					<Button Grid.Column="1" Content="Set"
+									Command="{Binding DataContext.SetCollectionValueCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+									CommandParameter="{Binding}"
+									Margin="6,0,0,0" />
+					<Button Grid.Column="2" Content="Revert"
+									Command="{Binding DataContext.RevertCollectionValueCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+									CommandParameter="{Binding}"  Margin="6,0,0,0"/>
+				</Grid>
+			</Border>
+		</DataTemplate>
+
 
 	</Window.DataTemplates>
 
